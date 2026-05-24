@@ -5,7 +5,7 @@ import uuid
 
 from app.adapters.growthbook import fetch_flags
 from app.services.diff_engine import compute_diff
-from app.repositories.db import create_promotion_batch, update_promotion_batch_resolutions
+from app.repositories.db import create_promotion_batch, update_promotion_batch_resolutions, validate_market_and_environments
 from app.schemas.promotion import (
     PromotionValidateRequest,
     PromotionValidateResponse,
@@ -19,6 +19,9 @@ router = APIRouter()
 
 @router.post("/api/promotions/validate", response_model=PromotionValidateResponse)
 async def validate_promotion(payload: PromotionValidateRequest):
+    # Validate market and environments via repository
+    await validate_market_and_environments(payload.market, payload.from_env, payload.to_env)
+
     # Fetch both environments
     try:
         source_flags, target_flags = await _fetch_both(payload.from_env, payload.to_env)

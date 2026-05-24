@@ -152,13 +152,40 @@ async def update_promotion_batch_resolutions(batch_id: str, resolutions: dict):
                 return None
 
             existing = pb.flags_data or {}
-            existing["resolutions"] = resolutions
-            pb.flags_data = existing
+            new_flags = dict(existing)
+            new_flags["resolutions"] = resolutions
+            pb.flags_data = new_flags
             pb.status = "validated"
             await session.commit()
+            # re-query to ensure JSON column changes are loaded from DB
+            result = await session.execute(select(PromotionBatch).where(PromotionBatch.id == batch_id))
+            pb = result.scalars().first()
             logger.info("Updated PromotionBatch resolutions", extra={"batch_id": batch_id})
             return pb
         except Exception:
             await session.rollback()
             logger.exception("Failed to update PromotionBatch resolutions", extra={"batch_id": batch_id})
             raise
+
+
+async def validate_market_and_environments(market_code: str, from_env: str, to_env: str):
+    """Validate that market and environments exist in MarketRegistry.
+    
+    Returns True if valid, raises HTTPException if not.
+    """
+    from fastapi import HTTPException
+    
+    if async_session is None:
+        init_engine()
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(MarketRegistry).where(MarketRegistry.market_code == market_code)
+        )
+        mr = result.scalars().first()
+        if not mr:
+            raise HTTPException(status_code=400, detail=f"Unknown market: {market_code}")
+        if from_env not in mr.environment_chain or to_env not in mr.environment_chain:
+            raise HTTPException(status_code=400, detail=f"Invalid environments for market {market_code}")
+
+    return True

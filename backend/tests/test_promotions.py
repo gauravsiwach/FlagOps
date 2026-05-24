@@ -45,8 +45,13 @@ async def test_validate_no_conflicts(monkeypatch):
     async def fake_create(batch_id, market_code, from_environment, to_environment, flags_data, status="pending_validation"):
         called.append((batch_id, flags_data))
 
+    # Mock both market validation and fetch
+    async def fake_validate_market(*args, **kwargs):
+        return True
+
     monkeypatch.setattr("app.routers.promotions.fetch_flags", same_fetch)
     monkeypatch.setattr("app.routers.promotions.create_promotion_batch", fake_create)
+    monkeypatch.setattr("app.routers.promotions.validate_market_and_environments", fake_validate_market)
 
     payload = {"market": "IN", "from_env": "dev", "to_env": "qa", "flags_to_promote": ["promo-flag"]}
 
@@ -74,7 +79,11 @@ async def test_create_batch_db_error(monkeypatch):
     async def failing_create(*args, **kwargs):
         raise RuntimeError("db down")
 
+    async def fake_validate_market(*args, **kwargs):
+        return True
+
     monkeypatch.setattr("app.routers.promotions.create_promotion_batch", failing_create)
+    monkeypatch.setattr("app.routers.promotions.validate_market_and_environments", fake_validate_market)
     payload = {"market": "IN", "from_env": "dev", "to_env": "qa", "flags_to_promote": ["promo-flag"]}
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         r = await ac.post("/api/promotions/validate", json=payload)
@@ -91,8 +100,12 @@ async def test_validate_creates_batch_and_returns_conflicts(monkeypatch):
     async def fake_create(batch_id, market_code, from_environment, to_environment, flags_data, status="pending_validation"):
         called.append((batch_id, market_code, from_environment, to_environment, flags_data, status))
 
+    async def fake_validate_market(*args, **kwargs):
+        return True
+
     monkeypatch.setattr("app.routers.promotions.fetch_flags", fake_fetch)
     monkeypatch.setattr("app.routers.promotions.create_promotion_batch", fake_create)
+    monkeypatch.setattr("app.routers.promotions.validate_market_and_environments", fake_validate_market)
 
     payload = {
         "market": "IN",
