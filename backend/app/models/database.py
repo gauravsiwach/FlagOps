@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP, JSON, ARRAY
+from sqlalchemy import Column, Integer, String, TIMESTAMP, JSON, ARRAY, Boolean, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 
@@ -47,3 +47,19 @@ class AuditLog(Base):
     executed_by = Column(String(256))
     executed_at = Column(TIMESTAMP, server_default=func.now())
     extra_metadata = Column(JSON)
+
+class FlagMarketInventory(Base):
+    __tablename__ = "flag_market_inventory"
+    id = Column(Integer, primary_key=True)
+    flag_key = Column(String, nullable=False)
+    market_code = Column(String(5), nullable=False)
+    environment = Column(String(20), nullable=False)
+    categorisation = Column(String(50), nullable=False)  # 'generic' or 'market_specific'
+    last_seen_in_environment = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    last_synced_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    is_active = Column(Boolean, default=True)
+    
+    # Unique constraint: no duplicate flag-market-env tuples
+    __table_args__ = (
+        UniqueConstraint('flag_key', 'market_code', 'environment', name='uq_flag_market_env'),
+    )

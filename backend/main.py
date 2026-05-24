@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from app.db import init_db_on_startup
 from app.routers.diff import router as diff_router
+from app.routers.promotions import router as promotions_router
 
 # Load .env from backend/ directory
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
@@ -19,6 +20,7 @@ app.add_middleware(
 )
 
 app.include_router(diff_router)
+app.include_router(promotions_router)
 
 @app.on_event("startup")
 async def startup_event():
