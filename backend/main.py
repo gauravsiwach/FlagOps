@@ -1,10 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import logging
 from dotenv import load_dotenv
 from app.db import init_db_on_startup
 from app.routers.diff import router as diff_router
 from app.routers.promotions import router as promotions_router
+
+# Configure logging to show INFO and above
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 # Load .env from backend/ directory
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))

@@ -168,6 +168,90 @@ async def update_promotion_batch_resolutions(batch_id: str, resolutions: dict):
             raise
 
 
+async def create_flag_snapshot(promotion_batch_id: str, flag_key: str, market_code: str, environment: str, rules_before: dict):
+    """Persist a FlagSnapshot for auditing before applying changes."""
+    if async_session is None:
+        init_engine()
+
+    async with async_session() as session:
+        try:
+            from app.models.database import FlagSnapshot
+
+            fs = FlagSnapshot(
+                promotion_batch_id=promotion_batch_id,
+                flag_key=flag_key,
+                market_code=market_code,
+                environment=environment,
+                rules_before=rules_before,
+            )
+            session.add(fs)
+            await session.commit()
+            logger.info("Created FlagSnapshot", extra={"batch_id": promotion_batch_id, "flag": flag_key})
+            return fs
+        except Exception:
+            await session.rollback()
+            logger.exception("Failed to create FlagSnapshot", extra={"batch_id": promotion_batch_id, "flag": flag_key})
+            raise
+
+
+async def create_audit_log(action: str, promotion_batch_id: str, market_code: str, from_environment: str, to_environment: str, flags_affected: dict, executed_by: str = None, extra_metadata: dict = None):
+    if async_session is None:
+        init_engine()
+
+    async with async_session() as session:
+        try:
+            from app.models.database import AuditLog
+
+            al = AuditLog(
+                action=action,
+                promotion_batch_id=promotion_batch_id,
+                market_code=market_code,
+                from_environment=from_environment,
+                to_environment=to_environment,
+                flags_affected=flags_affected,
+                executed_by=executed_by,
+                extra_metadata=extra_metadata,
+            )
+            session.add(al)
+            await session.commit()
+            logger.info("Created AuditLog", extra={"batch_id": promotion_batch_id, "action": action})
+            return al
+        except Exception:
+            await session.rollback()
+            logger.exception("Failed to create AuditLog", extra={"batch_id": promotion_batch_id})
+            raise
+
+
+async def update_promotion_batch_execution_results(batch_id: str, execution_results: dict, final_status: str = "executed"):
+    """Update PromotionBatch with execution results and set final status."""
+    if async_session is None:
+        init_engine()
+
+    async with async_session() as session:
+        try:
+            from app.models.database import PromotionBatch
+
+            result = await session.execute(select(PromotionBatch).where(PromotionBatch.id == batch_id))
+            pb = result.scalars().first()
+            if not pb:
+                return None
+
+            existing = pb.flags_data or {}
+            new_flags = dict(existing)
+            new_flags["execution_results"] = execution_results
+            pb.flags_data = new_flags
+            pb.status = final_status
+            await session.commit()
+            result = await session.execute(select(PromotionBatch).where(PromotionBatch.id == batch_id))
+            pb = result.scalars().first()
+            logger.info("Updated PromotionBatch execution results", extra={"batch_id": batch_id})
+            return pb
+        except Exception:
+            await session.rollback()
+            logger.exception("Failed to update PromotionBatch execution results", extra={"batch_id": batch_id})
+            raise
+
+
 async def validate_market_and_environments(market_code: str, from_env: str, to_env: str):
     """Validate that market and environments exist in MarketRegistry.
     

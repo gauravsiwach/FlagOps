@@ -56,6 +56,8 @@ def compute_diff(
                 "flag_key": flag_key,
                 "source_rules": source_rule,
                 "target_rules": None,
+                "source_enabled": source_enabled,
+                "target_enabled": False,
                 "status": "missing",
                 "last_modified_source": source_flag.get("last_modified"),
             })
@@ -77,6 +79,8 @@ def compute_diff(
                 "flag_key": flag_key,
                 "source_rules": source_rule,
                 "target_rules": target_rule,
+                "source_enabled": source_enabled,
+                "target_enabled": target_enabled,
                 "status": status,
                 "last_modified_source": source_flag.get("last_modified"),
             })
@@ -88,6 +92,8 @@ def compute_diff(
                 "flag_key": flag_key,
                 "source_rules": None,
                 "target_rules": target_rule,
+                "source_enabled": False,
+                "target_enabled": target_flag.get("enabled", False),
                 "status": "updated",
                 "last_modified_source": None,
             })
